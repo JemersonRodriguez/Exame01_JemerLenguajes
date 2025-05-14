@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Gestión de Bibliotecas y Libros</title>
+  <style>
+    table { width: 100%; border-collapse: collapse; margin-bottom: 1em; }
+    th, td { border: 1px solid #ccc; padding: .5em; text-align: left; }
+    form { margin-bottom: 1em; }
+    form > * { margin-right: 1em; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+  <h1>Gestión de Bibliotecas</h1>
+  <form id="form-bib" onsubmit="event.preventDefault()">
+    <input id="bib-id" type="hidden">
+    <input id="bib-nombre"    placeholder="Nombre" required>
+    <input id="bib-ubicacion" placeholder="Ubicación" required>
+    <input id="bib-capacidad"  type="number" placeholder="Capacidad" required>
+    <button id="crear-bib">Crear</button>
+    <button id="actualizar-bib" class="hidden">Actualizar</button>
+    <button id="cancelar-bib" class="hidden">Cancelar</button>
+  </form>
+  <input id="buscar-bib" placeholder="Buscar biblioteca..." oninput="buscarBibliotecas()">
+  <table id="tabla-bibliotecas">
+    <thead>
+      <tr><th>ID</th><th>Nombre</th><th>Ubicación</th><th>Capacidad</th><th>Acciones</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <h1>Gestión de Libros</h1>
+  <form id="form-lib" onsubmit="event.preventDefault()">
+    <input id="lib-id" type="hidden">
+    <input id="lib-titulo" placeholder="Título" required>
+    <input id="lib-autor"  placeholder="Autor" required>
+    <input id="lib-fecha"  type="date" required>
+    <input id="lib-bib"    type="number" placeholder="ID Biblioteca" required>
+    <button id="crear-lib">Crear</button>
+    <button id="actualizar-lib" class="hidden">Actualizar</button>
+    <button id="cancelar-lib" class="hidden">Cancelar</button>
+  </form>
+  <input id="buscar-lib" placeholder="Buscar libro..." oninput="buscarLibros()">
+  <table id="tabla-libros">
+    <thead>
+      <tr><th>ID</th><th>Título</th><th>Autor</th><th>Fecha</th><th>Biblioteca ID</th><th>Acciones</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const API_BASE = 'http://localhost:8080';
+    let allBibs = [];
+    let allLibs = [];
+
+    // ----- BIBLIOTECAS -----
+    async function listarBibliotecas() {
+      const res = await fetch(`${API_BASE}/bibliotecas`);
+      allBibs = await res.json();
+      renderBibs(allBibs);
+    }
+    function renderBibs(list) {
+      const tbody = document.querySelector('#tabla-bibliotecas tbody'); tbody.innerHTML = '';
+      list.forEach(b => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${b.id}</td>
+          <td>${b.nombre}</td>
+          <td>${b.ubicacion}</td>
+          <td>${b.capacidadTotal}</td>
+          <td>
+            <button onclick="editarBib(${b.id})">Editar</button>
+            <button onclick="eliminarBiblioteca(${b.id})">Eliminar</button>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+    }
+    function buscarBibliotecas() {
+      const q = document.getElementById('buscar-bib').value.toLowerCase();
+      renderBibs(allBibs.filter(b => b.nombre.toLowerCase().includes(q) || b.ubicacion.toLowerCase().includes(q)));
+    }
+    async function crearBiblioteca() {
+      const data = {
+        nombre: document.getElementById('bib-nombre').value,
+        ubicacion: document.getElementById('bib-ubicacion').value,
+        capacidadTotal: +document.getElementById('bib-capacidad').value
+      };
+      await fetch(`${API_BASE}/bibliotecas`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+      resetFormBib(); listarBibliotecas();
+    }
+    async function editarBib(id) {
+      const b = allBibs.find(x=>x.id===id);
+      document.getElementById('bib-id').value = b.id;
+      document.getElementById('bib-nombre').value = b.nombre;
+      document.getElementById('bib-ubicacion').value = b.ubicacion;
+      document.getElementById('bib-capacidad').value = b.capacidadTotal;
+      document.getElementById('crear-bib').classList.add('hidden');
+      document.getElementById('actualizar-bib').classList.remove('hidden');
+      document.getElementById('cancelar-bib').classList.remove('hidden');
+    }
+    async function actualizarBiblioteca() {
+      const id = +document.getElementById('bib-id').value;
+      const data = {
+        nombre: document.getElementById('bib-nombre').value,
+        ubicacion: document.getElementById('bib-ubicacion').value,
+        capacidadTotal: +document.getElementById('bib-capacidad').value
+      };
+      await fetch(`${API_BASE}/bibliotecas/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+      resetFormBib(); listarBibliotecas();
+    }
+    function resetFormBib() {
+      document.getElementById('form-bib').reset();
+      document.getElementById('crear-bib').classList.remove('hidden');
+      document.getElementById('actualizar-bib').classList.add('hidden');
+      document.getElementById('cancelar-bib').classList.add('hidden');
+    }
+    document.getElementById('crear-bib').onclick = crearBiblioteca;
+    document.getElementById('actualizar-bib').onclick = actualizarBiblioteca;
+    document.getElementById('cancelar-bib').onclick = resetFormBib;
+    async function eliminarBiblioteca(id) { await fetch(`${API_BASE}/bibliotecas/${id}`,{method:'DELETE'}); listarBibliotecas(); }
+
+    // ----- LIBROS -----
+    async function listarLibros() {
+      const res = await fetch(`${API_BASE}/libros`);
+      allLibs = await res.json(); renderLibs(allLibs);
+    }
+    function renderLibs(list) {
+      const tbody = document.querySelector('#tabla-libros tbody'); tbody.innerHTML = '';
+      list.forEach(l => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${l.id}</td>
+          <td>${l.titulo}</td>
+          <td>${l.autor}</td>
+          <td>${l.fechaPublicacion}</td>
+          <td>${l.biblioteca?.id||''}</td>
+          <td>
+            <button onclick="editarLib(${l.id})">Editar</button>
+            <button onclick="eliminarLibro(${l.id})">Eliminar</button>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+    }
+    function buscarLibros() {
+      const q = document.getElementById('buscar-lib').value.toLowerCase();
+      renderLibs(allLibs.filter(l => l.titulo.toLowerCase().includes(q) || l.autor.toLowerCase().includes(q)));
+    }
+    async function crearLibro() {
+      const data = { titulo:document.getElementById('lib-titulo').value, autor:document.getElementById('lib-autor').value, fechaPublicacion:document.getElementById('lib-fecha').value, biblioteca:{id:+document.getElementById('lib-bib').value} };
+      await fetch(`${API_BASE}/libros`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+      resetFormLib(); listarLibros();
+    }
+    async function editarLib(id) {
+      const l = allLibs.find(x=>x.id===id);
+      document.getElementById('lib-id').value = l.id;
+      document.getElementById('lib-titulo').value = l.titulo;
+      document.getElementById('lib-autor').value = l.autor;
+      document.getElementById('lib-fecha').value = l.fechaPublicacion;
+      document.getElementById('lib-bib').value = l.biblioteca?.id || '';
+      document.getElementById('crear-lib').classList.add('hidden');
+      document.getElementById('actualizar-lib').classList.remove('hidden');
+      document.getElementById('cancelar-lib').classList.remove('hidden');
+    }
+    async function actualizarLibro() {
+      const id = +document.getElementById('lib-id').value;
+      const data = { titulo:document.getElementById('lib-titulo').value, autor:document.getElementById('lib-autor').value, fechaPublicacion:document.getElementById('lib-fecha').value, biblioteca:{id:+document.getElementById('lib-bib').value} };
+      await fetch(`${API_BASE}/libros/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+      resetFormLib(); listarLibros();
+    }
+    function resetFormLib() {
+      document.getElementById('form-lib').reset();
+      document.getElementById('crear-lib').classList.remove('hidden');
+      document.getElementById('actualizar-lib').classList.add('hidden');
+      document.getElementById('cancelar-lib').classList.add('hidden');
+    }
+    document.getElementById('crear-lib').onclick = crearLibro;
+    document.getElementById('actualizar-lib').onclick = actualizarLibro;
+    document.getElementById('cancelar-lib').onclick = resetFormLib;
+    async function eliminarLibro(id) { await fetch(`${API_BASE}/libros/${id}`,{method:'DELETE'}); listarLibros(); }
+
+    window.addEventListener('load', ()=>{
+      listarBibliotecas(); listarLibros();
+      document.getElementById('buscar-bib').oninput = buscarBibliotecas;
+      document.getElementById('buscar-lib').oninput = buscarLibros;
+    });
+  </script>
+
+</body>
+</html>
+
+
+
